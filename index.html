@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Красивый Чат</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <style>
+        /* Базовые настройки для всех устройств */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Poppins', 'Roboto', sans-serif;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1f35 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            touch-action: pan-y;
+            position: relative;
+        }
+
+        /* Основной контейнер */
+        .app-container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            height: 90vh;
+            background: linear-gradient(145deg, #171925, #13151f);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(66, 83, 138, 0.2);
+            box-shadow: 
+                10px 10px 30px rgba(10, 11, 16, 0.5),
+                -10px -10px 30px rgba(36, 40, 68, 0.1);
+            position: relative;
+        }
+
+        /* Боковая панель */
+        .sidebar {
+            width: 320px;
+            background: linear-gradient(165deg, #1c1f2e 0%, #15171f 100%);
+            border-right: 1px solid rgba(79, 100, 170, 0.15);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            transition: transform 0.3s ease;
+        }
+
+        /* Кнопка нового чата */
+        .new-chat-button {
+            margin: 16px;
+            padding: 14px;
+            background: linear-gradient(90deg, #4f64aa 0%, #3952a4 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-weight: 500;
+            box-shadow: 0 4px 10px rgba(53, 71, 145, 0.3);
+        }
+
+        /* Улучшение списка чатов */
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 10px;
+            margin-bottom: 10px;
+        }
+
+        /* Стили элементов чата */
+        .chat-item {
+            position: relative;
+            padding: 14px;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(40, 45, 65, 0.3);
+        }
+
+        .chat-item.active {
+            background: rgba(79, 100, 170, 0.25);
+            border-left: 3px solid rgba(79, 100, 170, 0.8);
+        }
+
+        .chat-item-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f64aa 0%, #3952a4 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+
+        /* Секция чата */
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(165deg, #1a1e2d 0%, #171921 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Шапка чата */
+        .chat-header {
+            padding: 16px 20px;
+            background: rgba(18, 20, 30, 0.95);
+            border-bottom: 1px solid rgba(79, 100, 170, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .chat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .show-sidebar-btn {
+            display: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(79, 100, 170, 0.2);
+            color: white;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        /* Область сообщений */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Улучшение сообщений */
+        .message {
+            max-width: 75%;
+            word-wrap: break-word;
+            padding: 14px 16px;
+            border-radius: 16px;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.3s forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.received {
+            background: linear-gradient(145deg, #262c40, #222736);
+            color: rgba(255, 255, 255, 0.95);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.sent {
+            background: linear-gradient(145deg, #4f64aa, #455a9a);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message .user-id {
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            font-weight: 500;
+            background: transparent;
+            padding: 0;
+            border: none;
+            display: block; /* Исправляет проблему с позиционированием */
+        }
+
+        .message .timestamp {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 6px;
+            text-align: right;
+        }
+
+        /* Поле ввода */
+        .chat-input {
+            padding: 16px 20px;
+            background: rgba(18, 20, 30, 0.95);
+            border-top: 1px solid rgba(79, 100, 170, 0.15);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            z-index: 5;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid rgba(79, 100, 170, 0.2);
+            border-radius: 20px;
+            outline: none;
+            font-size: 15px;
+            background: rgba(30, 34, 50, 0.7);
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            border-color: rgba(79, 100, 170, 0.5);
+            box-shadow: 0 0 0 2px rgba(79, 100, 170, 0.2);
+        }
+
+        /* Кнопка отправки */
+        .send-button {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #4f64aa, #3952a4);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        /* Модальное окно */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            visibility: hidden;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: rgba(23, 25, 37, 0.95);
+            border-radius: 20px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(79, 100, 170, 0.2);
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .modal-close {
+            width: 30px;
+            height: 30px;
+            background: rgba(79, 100, 170, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .user-search {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            background: rgba(30, 34, 50, 0.7);
+            border: 1px solid rgba(79, 100, 170, 0.2);
+            border-radius: 14px;
+            color: white;
+            outline: none;
+        }
+
+        /* Мобильная адаптация */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+            
+            .app-container {
+                width: 100%;
+                height: 100vh;
+                max-width: 100%;
+                border-radius: 0;
+                box-shadow: none;
+                border: none;
+            }
+            
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 85%;
+                height: 100%;
+                transform: translateX(-100%);
+                z-index: 100;
+                box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+                border-radius: 0 20px 20px 0;
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .show-sidebar-btn {
+                display: flex;
+            }
+            
+            .chat-section {
+                width: 100%;
+            }
+            
+            .chat-header {
+                padding: 14px 16px;
+            }
+            
+            .chat-messages {
+                padding: 16px;
+            }
+            
+            .message {
+                max-width: 85%;
+                padding: 12px 14px;
+            }
+            
+            .chat-input {
+                padding: 12px 16px;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(18, 20, 30, 0.98);
+                box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-content {
+                width: 95%;
+            padding: 20px;
+            }
+            
+            /* Фикс для отображения сообщений на мобильных */
+            .chat-messages {
+                padding-bottom: 70px; /* Дополнительный отступ снизу */
+            }
+            
+            /* Исправление отображения ID */
+            .user-id {
+                font-size: 12px;
+                padding: 4px 10px;
+            }
+            
+            /* Улучшение кнопок для мобильных касаний */
+            .send-button, .new-chat-button, .chat-item, .show-sidebar-btn {
+                cursor: default; /* Убираем курсор pointer на мобильных */
+            }
+            
+            /* Улучшаем стили для мобильных устройств */
+            .user-id.clickable {
+                padding: 4px 0; /* Увеличиваем область нажатия на мобильных */
+                display: inline-block;
+            }
+            
+            .user-id.clickable:active {
+                background-color: rgba(79, 100, 170, 0.15); /* Эффект нажатия для тач-устройств */
+                border-radius: 4px;
+            }
+        }
+
+        /* Обработка ориентации экрана */
+        @media screen and (max-height: 600px) and (orientation: landscape) {
+            .chat-messages {
+                padding-bottom: 60px;
+            }
+            
+            .message {
+                max-width: 70%;
+                padding: 10px 12px;
+                margin-bottom: 6px;
+            }
+            
+            .chat-input {
+                padding: 8px 12px;
+            }
+        }
+
+        /* Удаляем CSS-стили для статусов сообщений */
+        .message-footer {
+            display: none;
+        }
+        
+        .message-status {
+            display: none;
+        }
+        
+        .message-status-icon {
+            display: none;
+        }
+        
+        /* Возвращаем стиль метки времени */
+        .timestamp {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 6px;
+            text-align: right;
+        }
+        
+        /* Стили для счетчика непрочитанных сообщений */
+        .unread-badge {
+            background: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            min-width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 500;
+            margin-left: auto;
+            padding: 0 6px;
+            box-shadow: 0 2px 5px rgba(59, 130, 246, 0.4);
+        }
+        
+        /* Улучшенные стили для элементов чата */
+        .chat-item {
+            position: relative;
+            padding: 14px;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(40, 45, 65, 0.3);
+        }
+        
+        .chat-item-info {
+            flex: 1;
+            min-width: 0; /* Позволяет тексту сжиматься при необходимости */
+        }
+        
+        .chat-item-last-message {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        /* Удаляем CSS-стили для кнопки "Новые сообщения" */
+        .new-messages-btn {
+            display: none !important; /* Гарантированно скрываем элемент */
+        }
+
+        /* Стили для кнопки "Загрузить еще" и индикатора загрузки */
+        .load-more-btn {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin: 10px 0;
+            padding: 5px;
+        }
+
+        .load-more-btn button {
+            background: linear-gradient(135deg, #4f64aa, #3952a4);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 2px 5px rgba(59, 73, 123, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .load-more-btn button:hover {
+            background: linear-gradient(135deg, #5b70b6, #455fb0);
+            transform: translateY(-2px);
+        }
+
+        .message-loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .loader-spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(79, 100, 170, 0.3);
+            border-top-color: #4f64aa;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Стиль для индикатора "Начало истории сообщений" */
+        .no-more-messages {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            padding: 8px;
+            margin: 10px 0;
+            border-top: 1px solid rgba(79, 100, 170, 0.2);
+            width: 100%;
+        }
+
+        /* Стиль для пустого чата */
+        .chat-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 40px 0;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .chat-empty-state i {
+            font-size: 40px;
+            margin-bottom: 15px;
+            color: rgba(79, 100, 170, 0.5);
+        }
+
+        .chat-empty-state h3 {
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .chat-empty-state p {
+            font-size: 14px;
+        }
+
+        /* Стили для оверлея мобильной версии */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            backdrop-filter: blur(2px);
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        /* Стиль для кликабельных ников пользователей */
+        .user-id.clickable {
+            cursor: pointer;
+            position: relative;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .user-id.clickable:hover {
+            color: #4f64aa;
+        }
+
+        .user-id.clickable:after {
+            content: "";
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: #4f64aa;
+            transition: width 0.2s ease;
+        }
+
+        .user-id.clickable:hover:after {
+            width: 100%;
+        }
+
+        /* Добавляем эффект нажатия */
+        .user-id.clickable:active {
+            transform: translateY(1px);
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Добавляем оверлей для затемнения при открытом меню -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    
+    <div class="app-container">
+        <div class="sidebar">
+            <button class="new-chat-button" onclick="showNewChatModal()">
+                <i class="fas fa-plus"></i>
+                Новый чат
+                <i class="fas fa-times close-icon" style="visibility: hidden;"></i>
+            </button>
+            <div class="chat-list" id="chatList">
+                <div class="chat-item active" onclick="switchChat('global')" data-chat-id="global">
+                    <div class="chat-item-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="chat-item-info">
+                        <div class="chat-item-name">Глобальный чат</div>
+                        <div class="chat-item-last-message">Общий чат для всех</div>
+                    </div>
+                </div>
+                <!-- Личные чаты будут добавляться здесь -->
+            </div>
+            <button class="close-sidebar-btn" onclick="toggleSidebar()" style="display: none;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="chat-section">
+            <div class="chat-header">
+                <div class="show-sidebar-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </div>
+                <div class="chat-header-left">
+                    <h2 id="currentChatName">Глобальный чат</h2>
+                    <div class="online-indicator"></div>
+                </div>
+                <div class="user-id">
+                    <span id="userIdLabel">ID: </span>
+                    <span id="userId">leonard</span>
+                    <div class="change-nickname-btn" onclick="changeNickname()" title="Сменить ник">
+                        <i class="fas fa-user-edit"></i>
+            </div>
+                </div>
+            </div>
+            <div class="chat-messages" id="messages">
+                <!-- Добавьте эти элементы в div с классом chat-messages, перед закрывающим тегом -->
+                <div class="message-loader" id="messageLoader" style="display: none;">
+                    <div class="loader-spinner"></div>
+                    <span>Загрузка сообщений...</span>
+                </div>
+                <div class="load-more-btn" id="loadMoreBtn" style="display: none;">
+                    <button onclick="loadMoreMessages()">
+                        <i class="fas fa-arrow-up"></i>
+                        Загрузить еще
+                    </button>
+                </div>
+            </div>
+            <div class="chat-input">
+                    <input type="text" id="messageInput" placeholder="Введите сообщение...">
+                <button id="sendButton" class="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Заменяем модальное окно нового чата -->
+    <div id="newChatModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Новый чат</h3>
+                <div class="modal-close" onclick="hideNewChatModal()">
+                    <i class="fas fa-times"></i>
+            </div>
+            </div>
+            <input type="text" class="user-search" id="userSearch" placeholder="Поиск пользователя по ID...">
+            <div id="userList" class="user-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCxypEXHGW58g4kUJ80qJQDSv_jOHsnh4w",
+            authDomain: "chat-5fe0a.firebaseapp.com",
+            projectId: "chat-5fe0a",
+            storageBucket: "chat-5fe0a.firebasestorage.app",
+            messagingSenderId: "494037188866",
+            appId: "1:494037188866:web:9eadb1d943535e19dd821b",
+            measurementId: "G-W2QDT0QKY5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Настройка Firestore для более быстрой работы
+        db.settings({
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+        });
+
+        // Генерация ID пользователя
+        const userId = localStorage.getItem('chatUserId') || 
+                      'user' + Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+        localStorage.setItem('chatUserId', userId);
+        
+        // Добавляем загрузку никнейма пользователя
+        function loadUserNickname() {
+            db.collection('users').doc(userId).get()
+                .then(doc => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        if (userData.nickname) {
+                            document.getElementById('userId').textContent = userData.nickname;
+                        } else {
+        document.getElementById('userId').textContent = userId;
+                        }
+                    } else {
+                        document.getElementById('userId').textContent = userId;
+                    }
+                })
+                .catch(error => {
+                    console.error("Ошибка при загрузке никнейма:", error);
+                    document.getElementById('userId').textContent = userId;
+                });
+        }
+
+        // Сохранение пользователя в базе данных с никнеймом
+        db.collection('users').doc(userId).set({
+            userId: userId,
+            nickname: localStorage.getItem('userNickname') || userId,
+            lastSeen: Date.now()
+        }, { merge: true })
+        .then(() => {
+            loadUserNickname();
+        });
+
+        let currentChatId = 'global';
+        let unsubscribe = null;
+
+        // Сохранение пользователя в базе данных
+        db.collection('users').doc(userId).set({
+            userId: userId,
+            lastSeen: Date.now()
+        }, { merge: true });
+
+        // Константы для управления пагинацией сообщений
+        const MESSAGES_PER_PAGE = 20; // Количество сообщений на одну загрузку
+        let lastVisibleMessage = null; // Используется для пагинации
+        let isLoadingMoreMessages = false; // Флаг загрузки, чтобы избежать дублирования запросов
+        let allMessagesLoaded = false; // Флаг, указывающий, что все сообщения загружены
+        
+        // Исправленная функция инициализации мобильного представления
+        function initMobileView() {
+            const isMobile = window.innerWidth <= 768;
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (isMobile) {
+                // Инициализируем правильный обработчик для кнопки меню
+                const burgerBtn = document.querySelector('.show-sidebar-btn');
+                if (burgerBtn) {
+                    burgerBtn.style.display = 'flex';
+                    // Убедимся, что обработчик клика установлен правильно
+                    burgerBtn.onclick = toggleSidebar;
+                }
+                
+                // Настройка overlay для закрытия меню при клике вне его
+                if (overlay) {
+                    overlay.onclick = toggleSidebar;
+                    overlay.style.display = 'none';
+                    overlay.style.position = 'fixed';
+                    overlay.style.top = '0';
+                    overlay.style.left = '0';
+                    overlay.style.width = '100%';
+                    overlay.style.height = '100%';
+                    overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+                    overlay.style.zIndex = '50';
+                }
+            } else {
+                // Десктопная версия
+                if (sidebar) sidebar.style.transform = 'translateX(0)';
+                const burgerBtn = document.querySelector('.show-sidebar-btn');
+                if (burgerBtn) burgerBtn.style.display = 'none';
+            }
+        }
+
+        // Откат функции отправки сообщения к версии без статусов
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            messageInput.disabled = true;
+            
+            // Получаем текущий никнейм пользователя
+            const userNickname = document.getElementById('userId').textContent;
+            
+            const now = Date.now();
+            const messageData = {
+                text: message,
+                userId: userId,
+                userNickname: userNickname,
+                timestamp: now
+            };
+            
+            console.log("Отправка сообщения:", currentChatId, messageData);
+            
+            try {
+            if (currentChatId === 'global') {
+                // Глобальный чат
+                db.collection('messages').add(messageData)
+                    .then(() => {
+                        console.log("Сообщение отправлено в глобальный чат");
+                        messageInput.value = '';
+                        messageInput.disabled = false;
+                            messageInput.focus();
+                    })
+                    .catch(error => {
+                        console.error("Ошибка при отправке в глобальный чат:", error);
+                        messageInput.disabled = false;
+                        alert("Ошибка при отправке: " + error.message);
+                    });
+            } else {
+                    // Личный чат
+                const privateMessage = {
+                    text: message,
+                    userId: userId,
+                        userNickname: userNickname,
+                    timestamp: now,
+                    chatId: currentChatId
+                };
+                
+                console.log("Отправка личного сообщения:", privateMessage);
+                
+                db.collection('private_messages').add(privateMessage)
+                    .then(docRef => {
+                        console.log("Личное сообщение отправлено, ID:", docRef.id);
+                        messageInput.value = '';
+                        messageInput.disabled = false;
+                            messageInput.focus();
+                        
+                            // Обновляем информацию о чате
+                        return db.collection('chats').doc(currentChatId).update({
+                            lastMessage: message,
+                            lastMessageTime: now
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Ошибка при отправке личного сообщения:", error);
+                            
+                            // Пробуем создать документ чата, если его не существует
+                            if (error.code === 'not-found') {
+                                const participants = currentChatId.split('_');
+                                return db.collection('chats').doc(currentChatId).set({
+                                    participants: participants,
+                                    createdAt: now,
+                                    lastMessage: message,
+                                    lastMessageTime: now
+                                }).then(() => {
+                                    // После создания чата снова пробуем отправить сообщение
+                                    return db.collection('private_messages').add(privateMessage);
+                                }).then(() => {
+                                    messageInput.value = '';
+                                    messageInput.disabled = false;
+                                    messageInput.focus();
+                                });
+                            } else {
+                        messageInput.disabled = false;
+                        alert("Ошибка при отправке: " + error.message);
+                                throw error;
+                            }
+                    });
+                }
+            } catch (e) {
+                console.error("Непредвиденная ошибка при отправке:", e);
+                messageInput.disabled = false;
+                alert("Непредвиденная ошибка: " + e.message);
+            }
+        }
+
+        // Обновленная функция switchChat с отметкой прочтения
+        function switchChat(chatId) {
+            console.log("Переключение на чат:", chatId);
+            
+            // Сбрасываем состояние пагинации
+            lastVisibleMessage = null;
+            isLoadingMoreMessages = false;
+            allMessagesLoaded = false;
+            
+            // Отписываемся от предыдущей подписки
+            if (unsubscribe) {
+                unsubscribe();
+                unsubscribe = null;
+            }
+            
+            currentChatId = chatId;
+            
+            // Очищаем контейнер сообщений, но сохраняем элементы управления
+            const messagesContainer = document.getElementById('messages');
+            // Сохраняем элементы управления
+            const loader = document.getElementById('messageLoader');
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            
+            // Очищаем контейнер
+            messagesContainer.innerHTML = '';
+            
+            // Возвращаем элементы управления (кроме кнопки новых сообщений)
+            if (loader) messagesContainer.appendChild(loader);
+            if (loadMoreBtn) messagesContainer.appendChild(loadMoreBtn);
+            
+            // Обновляем название чата
+            const chatTitle = document.getElementById('currentChatName');
+            
+            if (chatId === 'global') {
+                chatTitle.textContent = 'Глобальный чат';
+                
+                // Выводим отладочную информацию
+                console.log("Загружаем глобальный чат");
+                
+                // Загружаем последние сообщения с ограничением
+                loadMessagesWithPagination();
+            } else {
+                // Находим другого участника чата
+                const otherUserId = chatId.split('_').find(id => id !== userId);
+                
+                // Получаем никнейм собеседника
+                db.collection('users').doc(otherUserId).get()
+                    .then(doc => {
+                        let otherUserNickname = otherUserId;
+                        if (doc.exists && doc.data().nickname) {
+                            otherUserNickname = doc.data().nickname;
+                        }
+                        chatTitle.textContent = `Чат с ${otherUserNickname}`;
+                    })
+                    .catch(error => {
+                        console.error("Ошибка при получении никнейма:", error);
+                        chatTitle.textContent = `Чат с ${otherUserId}`;
+                    });
+                
+                // Загружаем последние личные сообщения с ограничением
+                loadPrivateMessagesWithPagination();
+            }
+            
+            // Выделяем активный чат
+            document.querySelectorAll('.chat-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const activeItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+            if (activeItem) {
+                activeItem.classList.add('active');
+            }
+            
+            // На мобильных устройствах скрываем боковое меню после выбора чата
+            if (window.innerWidth <= 768) {
+                // Скрываем меню сразу после выбора чата
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                
+                // Скрываем сайдбар
+                sidebar.style.transform = 'translateX(-100%)';
+                sidebar.classList.remove('show');
+                if (overlay) overlay.classList.remove('show');
+                // Восстанавливаем скролл основного контента
+                document.body.style.overflow = '';
+                
+                // Снимаем активное состояние с кнопки меню, если она есть
+                const burgerBtn = document.querySelector('.show-sidebar-btn');
+                if (burgerBtn) burgerBtn.classList.remove('active');
+            }
+        }
+        
+        // Исправляем функцию загрузки глобальных сообщений с пагинацией
+        function loadMessagesWithPagination() {
+            if (isLoadingMoreMessages || allMessagesLoaded) return;
+            
+            isLoadingMoreMessages = true;
+            
+            // Показываем индикатор загрузки вверху чата
+            showLoadingIndicator();
+            
+            // Создаем контейнер для добавления элементов загрузки
+            const messagesContainer = document.getElementById('messages');
+            
+            // Проверяем, есть ли элементы загрузки и добавляем их, если нет
+            if (!document.getElementById('messageLoader')) {
+                const loader = document.createElement('div');
+                loader.className = 'message-loader';
+                loader.id = 'messageLoader';
+                loader.innerHTML = `
+                    <div class="loader-spinner"></div>
+                    <span>Загрузка сообщений...</span>
+                `;
+                loader.style.display = 'flex';
+                messagesContainer.prepend(loader);
+            }
+            
+            // Исправим запрос к Firestore
+            let query = db.collection('messages')
+                .orderBy('timestamp', 'desc') // Сортировка от новых к старым
+                .limit(MESSAGES_PER_PAGE);
+                
+            // Если есть последнее видимое сообщение, используем его для пагинации
+            if (lastVisibleMessage) {
+                query = query.startAfter(lastVisibleMessage);
+            }
+            
+            // Логируем запрос для отладки
+            console.log("Загрузка сообщений с пагинацией", currentChatId);
+            
+            query.get()
+                .then(snapshot => {
+                    removeLoadingIndicator();
+                    
+                    console.log("Получено сообщений:", snapshot.size);
+                    
+                    if (snapshot.empty) {
+                        console.log("Больше сообщений нет");
+                        allMessagesLoaded = true;
+                        
+                        if (!lastVisibleMessage) {
+                            // Если это первая загрузка и нет сообщений, показываем заглушку
+                            showEmptyChat();
+                        } else {
+                            // Если это не первая загрузка, показываем уведомление, что больше сообщений нет
+                            showNoMoreMessagesNotification();
+                        }
+                        
+                        isLoadingMoreMessages = false;
+                        return;
+                    }
+                    
+                    // Сохраняем последний видимый документ для следующей пагинации
+                    lastVisibleMessage = snapshot.docs[snapshot.docs.length - 1];
+                    
+                    // Получаем сообщения и сортируем их по времени (от старых к новым)
+                    const messages = [];
+                    snapshot.forEach(doc => {
+                        messages.push({...doc.data(), id: doc.id});
+                    });
+                    
+                    messages.reverse(); // Переворачиваем для правильного порядка отображения
+                    
+                    console.log("Обработанные сообщения:", messages.length);
+                    
+                    // Если это первая загрузка, добавляем сообщения снизу
+                    if (!document.querySelector('.message')) {
+                        messages.forEach(message => {
+                            // Используем createMessageElement и displayMessage для отображения сообщений
+                            displayMessage(message);
+                        });
+                        
+                        // Прокручиваем вниз после первой загрузки
+                        setTimeout(scrollToBottom, 100);
+                        
+                        // Подписываемся на новые сообщения
+                        setupRealtimeMessages();
+                        
+                        // Показываем кнопку загрузки старых сообщений, если есть что загружать
+                        if (messages.length === MESSAGES_PER_PAGE) {
+                            showLoadMoreButton();
+                        }
+                    } else {
+                        // Если это не первая загрузка, добавляем сообщения сверху
+                        const fragment = document.createDocumentFragment();
+                        const scrollPos = messagesContainer.scrollHeight - messagesContainer.scrollTop;
+                        
+                        messages.forEach(message => {
+                            const messageDiv = createMessageElement(message);
+                            fragment.prepend(messageDiv); // Добавляем в начало фрагмента
+                        });
+                        
+                        // Вставляем все сообщения в начало контейнера (после элементов управления)
+                        const firstMessage = messagesContainer.querySelector('.message');
+                        if (firstMessage) {
+                            messagesContainer.insertBefore(fragment, firstMessage);
+                        } else {
+                            messagesContainer.appendChild(fragment);
+                        }
+                        
+                        // Сохраняем позицию прокрутки
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight - scrollPos;
+                    }
+                    
+                    isLoadingMoreMessages = false;
+                })
+                .catch(error => {
+                    console.error("Ошибка при загрузке сообщений:", error);
+                    removeLoadingIndicator();
+                    isLoadingMoreMessages = false;
+                });
+        }
+        
+        // Исправляем функцию loadPrivateMessagesWithPagination, чтобы она работала без индекса
+        function loadPrivateMessagesWithPagination() {
+            if (isLoadingMoreMessages || allMessagesLoaded) return;
+            
+            isLoadingMoreMessages = true;
+            
+            // Показываем индикатор загрузки вверху чата
+            showLoadingIndicator();
+            
+            console.log("Загрузка личных сообщений для чата:", currentChatId);
+            
+            // Сначала получим все сообщения для чата без сортировки и ограничений
+            // Это временное решение, пока не создан индекс
+            db.collection('private_messages')
+                .where('chatId', '==', currentChatId)
+                .get()
+                .then(snapshot => {
+                    removeLoadingIndicator();
+                    
+                    console.log("Получено личных сообщений:", snapshot.size);
+                    
+                    if (snapshot.empty) {
+                        console.log("Личных сообщений нет");
+                        allMessagesLoaded = true;
+                        
+                        // Показываем пустое состояние чата
+                        showEmptyChat();
+                        
+                        isLoadingMoreMessages = false;
+                        return;
+                    }
+                    
+                    // Получаем все сообщения и сортируем их вручную
+                    const allMessages = [];
+                    snapshot.forEach(doc => {
+                        allMessages.push({...doc.data(), id: doc.id});
+                    });
+                    
+                    // Сортируем сообщения по времени
+                    allMessages.sort((a, b) => a.timestamp - b.timestamp);
+                    
+                    console.log("Обработано сообщений:", allMessages.length);
+                    
+                    // Очищаем контейнер сообщений от старых сообщений, но оставляем элементы управления
+                    const messagesContainer = document.getElementById('messages');
+                    const loaderElement = document.getElementById('messageLoader');
+                    const loadMoreElement = document.getElementById('loadMoreBtn');
+                    
+                    // Сохраняем элементы управления
+                    const elementsToKeep = [];
+                    if (loaderElement) elementsToKeep.push(loaderElement);
+                    if (loadMoreElement) elementsToKeep.push(loadMoreElement);
+                    
+                    // Удаляем только сообщения, но не элементы управления
+                    const messageElements = messagesContainer.querySelectorAll('.message');
+                    messageElements.forEach(el => el.remove());
+                    
+                    // Отображаем все сообщения
+                    allMessages.forEach(message => {
+                        displayMessage(message);
+                    });
+                    
+                    // Прокручиваем вниз после загрузки
+                    setTimeout(scrollToBottom, 100);
+                    
+                    // Поскольку мы уже загрузили все сообщения, отмечаем, что больше нет
+                    allMessagesLoaded = true;
+                    
+                    // Настраиваем получение новых сообщений в реальном времени
+                    setupRealtimePrivateMessages();
+                    
+                    isLoadingMoreMessages = false;
+                })
+                .catch(error => {
+                    console.error("Ошибка при загрузке личных сообщений:", error);
+                    
+                    // Если ошибка связана с отсутствием индекса, показываем сообщение
+                    if (error.code === 'failed-precondition') {
+                        const messagesContainer = document.getElementById('messages');
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'chat-empty-state';
+                        errorDiv.innerHTML = `
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h3>Требуется создать индекс</h3>
+                            <p>Для работы с личными сообщениями необходимо создать индекс в Firestore.</p>
+                            <p>Перейдите по ссылке из консоли, чтобы создать его.</p>
+                        `;
+                        messagesContainer.appendChild(errorDiv);
+                        
+                        console.error("Необходимо создать индекс для запроса. Используем альтернативный метод загрузки сообщений.");
+                    }
+                    
+                    removeLoadingIndicator();
+                    isLoadingMoreMessages = false;
+                });
+        }
+        
+        // Модифицируем обработчики получения новых сообщений, чтобы не вызывать кнопку
+        function setupRealtimeMessages() {
+            // Отписываемся от предыдущей подписки, если есть
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            
+            // Получаем текущее время для фильтрации только новых сообщений
+            const now = Date.now();
+            
+            // Подписываемся только на новые сообщения
+            unsubscribe = db.collection('messages')
+                .where('timestamp', '>', now)
+                .orderBy('timestamp', 'asc')
+                .onSnapshot(snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const data = change.doc.data();
+                            displayMessage(data);
+                            
+                            // Прокручиваем вниз при новых сообщениях
+                            scrollToBottom(); // Всегда прокручиваем вниз
+                        }
+                    });
+                }, error => {
+                    console.error("Ошибка при получении новых сообщений:", error);
+                });
+        }
+        
+        // Аналогично для личных сообщений
+        function setupRealtimePrivateMessages() {
+            // Отписываемся от предыдущей подписки
+            if (unsubscribe) {
+                unsubscribe();
+                unsubscribe = null;
+            }
+            
+            // Получаем текущее время
+            const now = Date.now();
+            
+            console.log("Настройка подписки на новые личные сообщения для чата:", currentChatId);
+            
+            // Подписываемся только на новые сообщения для этого чата
+            unsubscribe = db.collection('private_messages')
+                .where('chatId', '==', currentChatId)
+                .onSnapshot(snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const data = change.doc.data();
+                            
+                            // Проверяем, это новое сообщение после подписки
+                            if (data.timestamp > now) {
+                                console.log("Получено новое личное сообщение:", data.text);
+                                displayMessage(data);
+                                
+                                // Прокручиваем вниз при новых сообщениях
+                                scrollToBottom(); // Всегда прокручиваем вниз
+                            }
+                        }
+                    });
+                }, error => {
+                    console.error("Ошибка при получении новых личных сообщений:", error);
+                });
+        }
+
+        // Обработка полученных сообщений
+        function handleMessages(snapshot) {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added') {
+                    const data = change.doc.data();
+                    displayMessage(data);
+                }
+            });
+        }
+
+        // Отображение сообщения
+        function displayMessage(data) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = createMessageElement(data);
+            
+            // Добавляем сообщение
+            messagesContainer.appendChild(messageDiv);
+            
+            // Анимируем появление
+            setTimeout(() => {
+                messageDiv.style.transition = 'all 0.2s ease';
+                messageDiv.style.opacity = '1';
+            }, 10);
+        }
+        
+        // Возвращаем старую версию функции создания элемента сообщения без статусов
+        function createMessageElement(data) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${data.userId === userId ? 'sent' : 'received'}`;
+            
+            const timeString = formatTime(data.timestamp);
+            const safeText = escapeHtml(data.text);
+            
+            // Получаем никнейм из данных сообщения или используем ID
+            const displayName = data.userNickname || data.userId;
+            
+            // Делаем имя пользователя кликабельным только для сообщений других пользователей
+            // и только в глобальном чате
+            if (data.userId !== userId && currentChatId === 'global') {
+                messageDiv.innerHTML = `
+                    <div class="user-id clickable" onclick="startChatFromNickname('${data.userId}')">
+                        ${displayName}
+                    </div>
+                    <div class="message-text">${safeText}</div>
+                    <div class="timestamp">${timeString}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="user-id">${data.userId === userId ? 'Вы' : displayName}</div>
+                    <div class="message-text">${safeText}</div>
+                    <div class="timestamp">${timeString}</div>
+                `;
+            }
+            
+            return messageDiv;
+        }
+        
+        // Функция скроллинга для ПК-версии
+        function scrollToBottom() {
+            const messagesContainer = document.getElementById('messages');
+            
+            if (!messagesContainer) return;
+            
+            // Делаем скроллинг с задержкой для надежности
+            setTimeout(() => {
+                const scrollHeight = messagesContainer.scrollHeight;
+                
+                if (window.innerWidth <= 768) {
+                    // На мобильных устройствах используем простой скроллинг
+                    messagesContainer.scrollTop = scrollHeight;
+                } else {
+                    // На десктопе используем плавный скроллинг
+                    messagesContainer.scrollTo({
+                        top: scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 50);
+        }
+
+        // Исправленная функция для начала личного чата
+        function startChatFromMessage(otherUserId) {
+            if (otherUserId === userId || otherUserId === 'system') return;
+            
+            console.log("Создание чата с:", otherUserId);
+            
+            // Создаем ID чата (сортируем ID пользователей)
+            const chatId = [userId, otherUserId].sort().join('_');
+            
+            // Проверяем, существует ли уже такой чат
+            db.collection('chats').doc(chatId).get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        // Если чата еще нет, создаем его
+                        return db.collection('chats').doc(chatId).set({
+                            participants: [userId, otherUserId],
+                            createdAt: Date.now(),
+                            lastMessage: '',
+                            lastMessageTime: Date.now()
+                        });
+                    }
+                    return Promise.resolve();
+                })
+                .then(() => {
+                    // Добавляем чат в список и переключаемся на него
+                    addChatToList(chatId, otherUserId);
+                    switchChat(chatId);
+                })
+                .catch(error => {
+                    console.error("Ошибка при создании чата:", error);
+                    alert("Не удалось создать чат: " + error.message);
+                });
+        }
+
+        // Обновленная функция добавления чата в список без счетчика непрочитанных сообщений
+        function addChatToList(chatId, otherUserId) {
+            const chatList = document.getElementById('chatList');
+            
+            // Проверяем, есть ли уже такой чат в списке
+            const existingChat = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+            if (!existingChat) {
+                // Получаем никнейм собеседника и данные о чате
+                Promise.all([
+                    db.collection('users').doc(otherUserId).get(),
+                    db.collection('chats').doc(chatId).get()
+                ])
+                .then(([userDoc, chatDoc]) => {
+                    let otherUserNickname = otherUserId;
+                    if (userDoc.exists && userDoc.data().nickname) {
+                        otherUserNickname = userDoc.data().nickname;
+                    }
+                    
+                    // Получаем последнее сообщение
+                    let lastMessage = '';
+                    if (chatDoc.exists) {
+                        const chatData = chatDoc.data();
+                        lastMessage = chatData.lastMessage || '';
+                    }
+                    
+                    const chatItem = document.createElement('div');
+                    chatItem.className = 'chat-item';
+                    chatItem.setAttribute('data-chat-id', chatId);
+                    chatItem.setAttribute('data-user-id', otherUserId);
+                    
+                    chatItem.innerHTML = `
+                        <div class="chat-item-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="chat-item-info">
+                            <div class="chat-item-name">Чат с ${otherUserNickname}</div>
+                            <div class="chat-item-last-message">${lastMessage}</div>
+                        </div>
+                    `;
+                    
+                    // Обновляем обработчик клика по элементу чата
+                    chatItem.onclick = function() {
+                        switchChat(chatId);
+                    };
+                    
+                    chatList.appendChild(chatItem);
+                    
+                    // Настраиваем слушателя для обновления чата
+                    setupUnreadCountListener(chatId);
+                })
+                .catch(error => {
+                    console.error("Ошибка при получении данных чата:", error);
+                    
+                    // В случае ошибки используем базовое отображение
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item';
+                chatItem.setAttribute('data-chat-id', chatId);
+                
+                chatItem.innerHTML = `
+                    <div class="chat-item-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="chat-item-info">
+                        <div class="chat-item-name">Чат с ${otherUserId}</div>
+                        <div class="chat-item-last-message"></div>
+                    </div>
+                `;
+                
+                    chatItem.onclick = function() {
+                        switchChat(chatId);
+                    };
+                    
+                chatList.appendChild(chatItem);
+                });
+            }
+        }
+
+        // Загрузка существующих чатов
+        function loadChats() {
+            db.collection('chats')
+                .where('participants', 'array-contains', userId)
+                .get()
+                .then(snapshot => {
+                    snapshot.forEach(doc => {
+                        const chatData = doc.data();
+                        const chatId = doc.id;
+                        const otherUserId = chatData.participants.find(id => id !== userId);
+                        
+                        if (otherUserId) {
+                            addChatToList(chatId, otherUserId);
+                        }
+                    });
+                    
+                    // Начинаем с глобального чата
+                    switchChat('global');
+                })
+                .catch(error => {
+                    console.error("Ошибка при загрузке чатов:", error);
+                });
+        }
+
+        // Показать модальное окно для нового чата
+        function showNewChatModal() {
+            const modal = document.getElementById('newChatModal');
+            modal.classList.add('show');
+            document.querySelector('.user-search').value = '';
+            document.getElementById('userList').innerHTML = '';
+            
+            // Фокус на поле поиска
+            setTimeout(() => {
+                document.querySelector('.user-search').focus();
+            }, 300);
+        }
+
+        function hideNewChatModal() {
+            const modal = document.getElementById('newChatModal');
+            modal.classList.remove('show');
+        }
+
+        // Поиск пользователей
+        function searchUsers(query) {
+            const userList = document.getElementById('userList');
+            
+            if (!query.trim()) {
+                userList.innerHTML = '<div class="user-item">Введите ID пользователя для поиска</div>';
+                return;
+            }
+            
+            userList.innerHTML = '<div class="user-item">Поиск...</div>';
+            
+            // Поиск пользователей
+            db.collection('users')
+                .where('userId', '>=', query)
+                .where('userId', '<=', query + '\uf8ff')
+                .limit(10)
+                .get()
+                .then(snapshot => {
+                    userList.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        userList.innerHTML = '<div class="user-item">Пользователи не найдены</div>';
+                        return;
+                    }
+                    
+                    snapshot.forEach(doc => {
+                        const userData = doc.data();
+                        if (userData.userId !== userId) {
+                            const userItem = document.createElement('div');
+                            userItem.className = 'user-item';
+                            userItem.innerHTML = `
+                                <div class="user-item-id">
+                                    <i class="fas fa-user" style="margin-right: 10px;"></i>
+                                    ${userData.userId}
+                                </div>
+                            `;
+                            userItem.onclick = () => {
+                                startChatFromMessage(userData.userId);
+                                hideNewChatModal();
+                            };
+                            userList.appendChild(userItem);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error("Ошибка при поиске пользователей:", error);
+                    userList.innerHTML = '<div class="user-item">Ошибка при поиске</div>';
+                });
+        }
+
+        // Вспомогательные функции
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Добавьте эту функцию в конце скрипта для проверки структуры БД
+        function checkCollections() {
+            console.log("Проверка коллекций...");
+            
+            db.collection('messages').limit(1).get()
+                .then(snapshot => console.log("Коллекция messages:", snapshot.size, "документов"))
+                .catch(err => console.error("Ошибка при проверке messages:", err));
+            
+            db.collection('private_messages').limit(1).get()
+                .then(snapshot => console.log("Коллекция private_messages:", snapshot.size, "документов"))
+                .catch(err => console.error("Ошибка при проверке private_messages:", err));
+            
+            db.collection('chats').limit(1).get()
+                .then(snapshot => console.log("Коллекция chats:", snapshot.size, "документов"))
+                .catch(err => console.error("Ошибка при проверке chats:", err));
+            
+            db.collection('users').limit(1).get()
+                .then(snapshot => console.log("Коллекция users:", snapshot.size, "документов"))
+                .catch(err => console.error("Ошибка при проверке users:", err));
+        }
+
+        // Исправленная функция переключения боковой панели
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (!sidebar) return;
+            
+            if (sidebar.classList.contains('show')) {
+                // Скрываем сайдбар
+                sidebar.classList.remove('show');
+                sidebar.style.transform = 'translateX(-100%)';
+                if (overlay) overlay.style.display = 'none';
+                document.body.style.overflow = '';
+            } else {
+                // Показываем сайдбар
+                sidebar.classList.add('show');
+                sidebar.style.transform = 'translateX(0)';
+                if (overlay) overlay.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        
+        // Обновляем document.addEventListener чтобы гарантировать подключение обработчика отправки
+        document.addEventListener('DOMContentLoaded', () => {
+            // Добавляем оверлей для мобильной версии, если его еще нет
+            if (!document.getElementById('sidebarOverlay')) {
+                const overlay = document.createElement('div');
+                overlay.id = 'sidebarOverlay';
+                overlay.className = 'sidebar-overlay';
+                overlay.onclick = toggleSidebar;
+                document.body.appendChild(overlay);
+            }
+            
+            // Инициализация для мобильных устройств
+            if (window.innerWidth <= 768) {
+                document.querySelector('.sidebar').style.transform = 'translateX(-100%)';
+            }
+            
+            // Проверяем сообщения и загружаем чаты
+            loadChats();
+            initMobileView();
+            setupScrollListener();
+            
+            // Обработчики для поля ввода и кнопки отправки
+            const sendBtn = document.getElementById('sendButton');
+            const messageInput = document.getElementById('messageInput');
+            
+            sendBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                sendMessage();
+            });
+            
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Если в DOM все еще есть этот элемент, удаляем его
+            const newMessagesBtn = document.getElementById('newMessagesBtn');
+            if (newMessagesBtn && newMessagesBtn.parentNode) {
+                newMessagesBtn.parentNode.removeChild(newMessagesBtn);
+            }
+        });
+        
+        // Предотвращение увеличения на двойное нажатие
+        document.addEventListener('dblclick', event => {
+            event.preventDefault();
+        });
+
+        // Показать индикатор загрузки сообщений
+        function showLoadingIndicator() {
+            const loader = document.getElementById('messageLoader');
+            if (loader) {
+                loader.style.display = 'flex';
+                // Помещаем его в начало контейнера сообщений
+                const messagesContainer = document.getElementById('messages');
+                messagesContainer.prepend(loader);
+            }
+        }
+        
+        // Скрыть индикатор загрузки
+        function removeLoadingIndicator() {
+            const loader = document.getElementById('messageLoader');
+            if (loader) {
+                loader.style.display = 'none';
+            }
+        }
+        
+        // Показать кнопку "Загрузить еще"
+        function showLoadMoreButton() {
+            const messagesContainer = document.getElementById('messages');
+            
+            // Проверяем, существует ли уже кнопка
+            let loadMoreBtn = document.getElementById('loadMoreBtn');
+            
+            if (!loadMoreBtn && !allMessagesLoaded) {
+                // Создаем элемент, если его нет
+                loadMoreBtn = document.createElement('div');
+                loadMoreBtn.className = 'load-more-btn';
+                loadMoreBtn.id = 'loadMoreBtn';
+                loadMoreBtn.innerHTML = `
+                    <button onclick="loadMoreMessages()">
+                        <i class="fas fa-arrow-up"></i>
+                        Загрузить еще
+                    </button>
+                `;
+                
+                // Добавляем в начало контейнера сообщений
+                if (messagesContainer.firstChild) {
+                    messagesContainer.insertBefore(loadMoreBtn, messagesContainer.firstChild);
+                } else {
+                    messagesContainer.appendChild(loadMoreBtn);
+                }
+            } else if (loadMoreBtn && !allMessagesLoaded) {
+                loadMoreBtn.style.display = 'flex';
+            }
+        }
+        
+        // Скрыть кнопку "Загрузить еще"
+        function hideLoadMoreButton() {
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = 'none';
+            }
+        }
+        
+        // Показать уведомление "Больше сообщений нет"
+        function showNoMoreMessagesNotification() {
+            const messagesContainer = document.getElementById('messages');
+            const notification = document.createElement('div');
+            notification.className = 'no-more-messages';
+            notification.textContent = 'Начало истории сообщений';
+            messagesContainer.prepend(notification);
+        }
+        
+        // Показать пустое состояние чата
+        function showEmptyChat() {
+            const messagesContainer = document.getElementById('messages');
+            const emptyState = document.createElement('div');
+            emptyState.className = 'chat-empty-state';
+            emptyState.innerHTML = `
+                <i class="fas fa-comments"></i>
+                <h3>Нет сообщений</h3>
+                <p>Будьте первым, кто напишет в этот чат!</p>
+            `;
+            messagesContainer.appendChild(emptyState);
+        }
+        
+        // Исправленная функция для загрузки дополнительных сообщений
+        function loadMoreMessages() {
+            console.log("Загрузка дополнительных сообщений вызвана");
+            
+            if (isLoadingMoreMessages || allMessagesLoaded) {
+                console.log("Загрузка уже идет или все сообщения загружены", 
+                isLoadingMoreMessages, allMessagesLoaded);
+                return;
+            }
+            
+            if (currentChatId === 'global') {
+                loadMessagesWithPagination();
+            } else {
+                loadPrivateMessagesWithPagination();
+            }
+        }
+        
+        // Модифицируем обработчик скролла, чтобы не показывать кнопку
+        function setupScrollListener() {
+            const messagesContainer = document.getElementById('messages');
+            
+            messagesContainer.addEventListener('scroll', function() {
+                // Если пользователь прокрутил близко к верху и не в процессе загрузки
+                if (messagesContainer.scrollTop < 100 && !isLoadingMoreMessages && !allMessagesLoaded) {
+                    loadMoreMessages();
+                }
+                
+                // Удаляем обработку кнопки новых сообщений
+            });
+        }
+
+        // Добавляем функцию для ручной проверки сообщений в базе данных
+        function checkMessages() {
+            console.log("Проверка сообщений в базе данных...");
+            
+            db.collection('messages')
+                .orderBy('timestamp', 'desc')
+                .limit(5)
+                .get()
+                .then(snapshot => {
+                    console.log(`В коллекции messages найдено ${snapshot.size} последних сообщений:`);
+                    
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        console.log(`- ${data.userId}: ${data.text} (${new Date(data.timestamp).toLocaleString()})`);
+                    });
+                    
+                    if (snapshot.empty) {
+                        console.log("Сообщений в базе данных нет. Пробуем добавить тестовое сообщение...");
+                        
+                        // Добавляем тестовое сообщение, если база пуста
+                        return db.collection('messages').add({
+                            text: "Тестовое сообщение системы",
+                            userId: "system",
+                            timestamp: Date.now()
+                        });
+                    }
+                })
+                .then(() => {
+                    console.log("Проверка завершена");
+                })
+                .catch(error => {
+                    console.error("Ошибка при проверке сообщений:", error);
+                });
+        }
+
+        // Добавьте функцию, которая покажет инструкцию по созданию индекса
+        function showIndexInstructions() {
+            const messagesContainer = document.getElementById('messages');
+            
+            // Создаем элемент для инструкции
+            const instructionDiv = document.createElement('div');
+            instructionDiv.className = 'chat-empty-state';
+            instructionDiv.innerHTML = `
+                <i class="fas fa-info-circle"></i>
+                <h3>Необходимо создать индекс</h3>
+                <p>Для корректной работы личных чатов необходимо создать индекс в Firestore.</p>
+                <p>1. Откройте консоль Firebase</p>
+                <p>2. Перейдите в Firestore Database</p>
+                <p>3. Выберите вкладку "Индексы"</p>
+                <p>4. Создайте составной индекс для коллекции "private_messages":</p>
+                <p>- Поле "chatId" (Ascending)</p>
+                <p>- Поле "timestamp" (Descending)</p>
+                <button id="createIndexBtn" style="margin-top: 15px;">Посмотреть инструкцию</button>
+            `;
+            
+            messagesContainer.appendChild(instructionDiv);
+            
+            // Добавляем обработчик для кнопки
+            setTimeout(() => {
+                const createIndexBtn = document.getElementById('createIndexBtn');
+                if (createIndexBtn) {
+                    createIndexBtn.addEventListener('click', () => {
+                        window.open('https://console.firebase.google.com/project/_/firestore/indexes', '_blank');
+                    });
+                }
+            }, 100);
+        }
+
+        // Обновленная функция для смены ника пользователя
+        function changeNickname() {
+            // Создаем и показываем диалог ввода ника
+            const dialog = document.createElement('div');
+            dialog.className = 'confirmation-dialog';
+            
+            // Получаем текущие данные пользователя
+            db.collection('users').doc(userId).get()
+                .then(doc => {
+                    const userData = doc.data() || {};
+                    const lastNicknameChange = userData.lastNicknameChange || 0;
+                    const currentTime = Date.now();
+                    const daysSinceLastChange = Math.floor((currentTime - lastNicknameChange) / (1000 * 60 * 60 * 24));
+                    
+                    // Проверяем, прошло ли 14 дней с последней смены
+                    if (daysSinceLastChange < 14 && lastNicknameChange !== 0) {
+                        const daysLeft = 14 - daysSinceLastChange;
+                        
+                        dialog.innerHTML = `
+                            <div class="confirmation-content">
+                                <div class="confirmation-title">Смена ника недоступна</div>
+                                <div class="confirmation-message">Вы сможете сменить ник через ${daysLeft} дней.</div>
+                                <div class="confirmation-buttons">
+                                    <button class="confirmation-btn confirm">Понятно</button>
+                                </div>
+                            </div>
+                        `;
+                        
+                        document.body.appendChild(dialog);
+                        
+                        dialog.querySelector('.confirm').addEventListener('click', () => {
+                            document.body.removeChild(dialog);
+                        });
+                        
+                        return;
+                    }
+                    
+                    const currentNickname = userData.nickname || userId;
+                    
+                    // Создаем диалог для ввода нового ника
+                    dialog.innerHTML = `
+                        <div class="confirmation-content">
+                            <div class="confirmation-title">Смена ника</div>
+                            <div class="confirmation-message">
+                                <p>Введите новый ник:</p>
+                                <input type="text" id="newNicknameInput" value="${currentNickname}" 
+                                       style="width: 100%; padding: 12px; background: rgba(30, 31, 42, 0.95); color: white; border: 1px solid rgba(66, 83, 138, 0.2); border-radius: 10px; margin-top: 10px;">
+                                <p style="color: rgba(255, 255, 255, 0.6); font-size: 12px; margin-top: 8px;">Можно сменить раз в 14 дней</p>
+                            </div>
+                            <div class="confirmation-buttons">
+                                <button class="confirmation-btn cancel">Отмена</button>
+                                <button class="confirmation-btn confirm">Сохранить</button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(dialog);
+                    
+                    // Фокус на поле ввода
+                    setTimeout(() => {
+                        const input = document.getElementById('newNicknameInput');
+                        if (input) {
+                            input.focus();
+                            input.select();
+                        }
+                    }, 100);
+                    
+                    // Обработчик для кнопки отмены
+                    dialog.querySelector('.cancel').addEventListener('click', () => {
+                        document.body.removeChild(dialog);
+                    });
+                    
+                    // Обработчик для кнопки подтверждения
+                    dialog.querySelector('.confirm').addEventListener('click', () => {
+                        const newNickname = document.getElementById('newNicknameInput').value.trim();
+                        
+                        if (!newNickname) {
+                            alert("Ник не может быть пустым!");
+                            return;
+                        }
+                        
+                        if (newNickname.length > 20) {
+                            alert("Ник не может быть длиннее 20 символов!");
+                            return;
+                        }
+                        
+                        // Скрываем диалог ввода
+                        document.body.removeChild(dialog);
+                        
+                        // Показываем индикатор загрузки
+                        const loadingDialog = document.createElement('div');
+                        loadingDialog.className = 'confirmation-dialog';
+                        loadingDialog.innerHTML = `
+                            <div class="confirmation-content">
+                                <div class="confirmation-title">Обновление ника</div>
+                                <div class="confirmation-message">
+                                    <div class="loader-spinner" style="margin: 15px auto; width: 25px; height: 25px;"></div>
+                                    <p>Пожалуйста, подождите...</p>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(loadingDialog);
+                        
+                        // Обновляем ник пользователя напрямую, без проверки на уникальность
+                        // Это позволит избежать проблем с правами доступа
+                        db.collection('users').doc(userId).update({
+                            nickname: newNickname,
+                            lastNicknameChange: currentTime
+                        })
+                        .then(() => {
+                            // Удаляем индикатор загрузки
+                            document.body.removeChild(loadingDialog);
+                            
+                            // Обновляем отображение ника в интерфейсе
+                            document.getElementById('userId').textContent = newNickname;
+                            
+                            // Показываем сообщение об успехе
+                            const successDialog = document.createElement('div');
+                            successDialog.className = 'confirmation-dialog';
+                            successDialog.innerHTML = `
+                                <div class="confirmation-content">
+                                    <div class="confirmation-title">Успех!</div>
+                                    <div class="confirmation-message">Ваш ник успешно изменен на "${newNickname}"</div>
+                                    <div class="confirmation-buttons">
+                                        <button class="confirmation-btn confirm">OK</button>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.appendChild(successDialog);
+                            
+                            successDialog.querySelector('.confirm').addEventListener('click', () => {
+                                document.body.removeChild(successDialog);
+                            });
+                        })
+                        .catch(error => {
+                            // Удаляем индикатор загрузки
+                            document.body.removeChild(loadingDialog);
+                            
+                            // Показываем ошибку
+                            const errorDialog = document.createElement('div');
+                            errorDialog.className = 'confirmation-dialog';
+                            errorDialog.innerHTML = `
+                                <div class="confirmation-content">
+                                    <div class="confirmation-title">Ошибка</div>
+                                    <div class="confirmation-message">Не удалось обновить ник: ${error.message}</div>
+                                    <div class="confirmation-buttons">
+                                        <button class="confirmation-btn confirm">OK</button>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.appendChild(errorDialog);
+                            
+                            errorDialog.querySelector('.confirm').addEventListener('click', () => {
+                                document.body.removeChild(errorDialog);
+                            });
+                            
+                            console.error("Ошибка при смене ника:", error);
+                        });
+                    });
+                })
+                .catch(error => {
+                    document.body.removeChild(dialog);
+                    console.error("Ошибка при получении данных пользователя:", error);
+                    
+                    // Показываем ошибку
+                    const errorDialog = document.createElement('div');
+                    errorDialog.className = 'confirmation-dialog';
+                    errorDialog.innerHTML = `
+                        <div class="confirmation-content">
+                            <div class="confirmation-title">Ошибка</div>
+                            <div class="confirmation-message">Не удалось получить данные пользователя: ${error.message}</div>
+                            <div class="confirmation-buttons">
+                                <button class="confirmation-btn confirm">OK</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(errorDialog);
+                    
+                    errorDialog.querySelector('.confirm').addEventListener('click', () => {
+                        document.body.removeChild(errorDialog);
+                    });
+                });
+        }
+
+        // Функция показа модальных уведомлений вместо alert
+        function showNotification(title, message, type = 'info', buttons = [{text: 'OK', primary: true}]) {
+            const dialog = document.createElement('div');
+            dialog.className = 'confirmation-dialog';
+            
+            // Иконка в зависимости от типа уведомления
+            let icon = '';
+            switch(type) {
+                case 'success':
+                    icon = '<i class="fas fa-check-circle" style="color: #4ade80; font-size: 36px; margin-bottom: 15px;"></i>';
+                    break;
+                case 'error':
+                    icon = '<i class="fas fa-exclamation-circle" style="color: #ef4444; font-size: 36px; margin-bottom: 15px;"></i>';
+                    break;
+                case 'warning':
+                    icon = '<i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: 36px; margin-bottom: 15px;"></i>';
+                    break;
+                default:
+                    icon = '<i class="fas fa-info-circle" style="color: #4070f4; font-size: 36px; margin-bottom: 15px;"></i>';
+            }
+            
+            // Создаем кнопки
+            let buttonHtml = '<div class="confirmation-buttons">';
+            buttons.forEach(btn => {
+                const className = btn.primary ? 'confirmation-btn confirm' : 'confirmation-btn cancel';
+                buttonHtml += `<button class="${className}" data-action="${btn.action || ''}">${btn.text}</button>`;
+            });
+            buttonHtml += '</div>';
+            
+            // Формируем содержимое диалога
+            dialog.innerHTML = `
+                <div class="confirmation-content">
+                    ${icon}
+                    <div class="confirmation-title">${title}</div>
+                    <div class="confirmation-message">${message}</div>
+                    ${buttonHtml}
+                </div>
+            `;
+            
+            document.body.appendChild(dialog);
+            
+            // Добавляем обработчики для кнопок
+            dialog.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.body.removeChild(dialog);
+                    const action = e.target.getAttribute('data-action');
+                    if (action && typeof window[action] === 'function') {
+                        window[action]();
+                    }
+                });
+            });
+            
+            return dialog;
+        }
+
+        // Упрощенная версия без учета непрочитанных сообщений
+        function setupUnreadCountListener(chatId) {
+            db.collection('chats').doc(chatId)
+                .onSnapshot(doc => {
+                    if (doc.exists) {
+                        const chatData = doc.data();
+                        const lastMessage = chatData.lastMessage || '';
+                        
+                        // Обновляем элемент чата в списке
+                        const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+                        if (chatItem) {
+                            // Обновляем только последнее сообщение
+                            const lastMessageElement = chatItem.querySelector('.chat-item-last-message');
+                            if (lastMessageElement && lastMessage) {
+                                lastMessageElement.textContent = lastMessage;
+                            }
+                        }
+                    }
+                }, error => {
+                    console.error(`Ошибка при отслеживании обновления чата ${chatId}:`, error);
+                });
+        }
+
+        // Обновляем инициализацию страницы
+        window.addEventListener('load', function() {
+            initMobileView();
+            
+            // Добавляем обработчик изменения размера окна
+            window.addEventListener('resize', function() {
+                initMobileView();
+            });
+            
+            // Показываем кнопку "Загрузить еще", если есть что загружать
+            if (!allMessagesLoaded) {
+                showLoadMoreButton();
+            }
+        });
+
+        // Новая функция для создания чата при клике на ник пользователя
+        function startChatFromNickname(otherUserId) {
+            if (otherUserId === userId || otherUserId === 'system') {
+                // Не создаем чат с самим собой или с системой
+                showNotification('Информация', 'Нельзя создать чат с этим пользователем', 'info');
+                return;
+            }
+            
+            console.log("Создание чата с пользователем:", otherUserId);
+            
+            // Создаем ID чата (сортируем ID пользователей)
+            const chatId = [userId, otherUserId].sort().join('_');
+            
+            // Показываем небольшой индикатор загрузки
+            const notification = showNotification(
+                'Переход в личный чат', 
+                '<div class="loader-spinner" style="margin: 15px auto;"></div>Открываем чат...', 
+                'info', 
+                []
+            );
+            
+            // Проверяем, существует ли уже такой чат
+            db.collection('chats').doc(chatId).get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        // Если чата еще нет, создаем его
+                        return db.collection('chats').doc(chatId).set({
+                            participants: [userId, otherUserId],
+                            createdAt: Date.now(),
+                            lastMessage: '',
+                            lastMessageTime: Date.now()
+                        });
+                    }
+                    return Promise.resolve();
+                })
+                .then(() => {
+                    // Если нужно, запрашиваем информацию о пользователе
+                    return db.collection('users').doc(otherUserId).get();
+                })
+                .then((userDoc) => {
+                    // После создания чата, закрываем уведомление
+                    if (notification && notification.parentNode) {
+                        document.body.removeChild(notification);
+                    }
+                    
+                    // Добавляем чат в список
+                    addChatToList(chatId, otherUserId);
+                    
+                    // И переключаемся на него
+                    switchChat(chatId);
+                })
+                .catch(error => {
+                    console.error("Ошибка при создании чата:", error);
+                    
+                    // В случае ошибки показываем сообщение
+                    if (notification && notification.parentNode) {
+                        document.body.removeChild(notification);
+                    }
+                    
+                    showNotification(
+                        'Ошибка', 
+                        'Не удалось создать личный чат: ' + error.message, 
+                        'error'
+                    );
+                });
+        }
+    </script>
+</body>
+</html>
