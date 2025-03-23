@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="NightTalk - анонимный чат для общения в реальном времени">
+    <meta name="theme-color" content="#7C4DFF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>NightTalk</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Улучшенная загрузка Supabase с проверкой ошибок -->
+    <script>
+    window.supabaseLoadError = false;
+    function handleSupabaseError() {
+        window.supabaseLoadError = true;
+        console.error('Не удалось загрузить библиотеку Supabase');
+        document.addEventListener('DOMContentLoaded', function() {
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'connection-notification';
+            errorMessage.style.display = 'block';
+            errorMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Не удалось загрузить необходимые ресурсы. Проверьте подключение к интернету и обновите страницу.</span>';
+            document.body.appendChild(errorMessage);
+        });
+    }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/dist/umd/supabase.min.js" 
+        onerror="handleSupabaseError()"
+        async></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body oncontextmenu="return false;">
+    <div class="app">
+        <!-- Экран входа -->
+        <div id="login-screen" class="screen active">
+            <div class="login-container">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-comment-dots"></i>
+                    </div>
+                    <h1>NightTalk</h1>
+                </div>
+                <p class="welcome-text">Добро пожаловать в анонимный чат для свободного общения</p>
+                
+                <div class="login-button-container">
+                    <button id="enter-btn" class="btn-primary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Войти в чат</span>
+                    </button>
+                </div>
+                
+                <div id="loading" class="loading-indicator hidden">
+                    <div class="spinner"></div>
+                    <p>Подключение...</p>
+                </div>
+            </div>
+            <div class="decoration-circle c1"></div>
+            <div class="decoration-circle c2"></div>
+            <div class="decoration-circle c3"></div>
+        </div>
+
+        <!-- Экран чата -->
+        <div id="chat-screen" class="screen">
+            <div class="chat-header">
+                <div class="user-info">
+                    <div class="avatar-container" id="current-user-avatar">
+                        <img src="https://via.placeholder.com/40" alt="Аватар" id="user-avatar">
+                        <div class="avatar-status online"></div>
+                    </div>
+                    <div class="username" id="username">user123</div>
+                </div>
+                <div class="header-actions">
+                    <span id="connection-status" class="connection-status">
+                        <i class="fas fa-signal"></i>
+                    </span>
+                    <span id="online-count"><i class="fas fa-users"></i> 0 онлайн</span>
+                    <button id="theme-toggle" class="icon-btn" aria-label="Переключить тему">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="messages-container">
+                <!-- Сообщения будут добавляться здесь -->
+            </div>
+
+            <div class="chat-input">
+                <div class="input-wrapper">
+                    <button class="emoji-btn icon-btn" aria-label="Эмодзи">
+                        <i class="far fa-smile"></i>
+                    </button>
+                    <input type="text" id="message-input" placeholder="Введите сообщение...">
+                    <button id="send-message" class="icon-btn" aria-label="Отправить">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Уведомление о статусе соединения -->
+        <div id="connection-notification" class="connection-notification hidden">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="connection-message">Проблемы с подключением</span>
+        </div>
+    </div>
+
+    <!-- Проверка наличия Supabase перед загрузкой основного скрипта -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function checkSupabaseLoaded() {
+            if (window.supabaseLoadError) {
+                console.error('Supabase не загружен, скрипт не будет инициализирован');
+                return;
+            }
+            
+            if (typeof window.supabase === 'undefined') {
+                console.log('Ожидание загрузки Supabase...');
+                setTimeout(checkSupabaseLoaded, 100);
+            } else {
+                console.log('Supabase успешно загружен, инициализация скрипта');
+                
+                // Создаем и добавляем скрипт
+                const scriptElement = document.createElement('script');
+                scriptElement.src = 'script.js';
+                scriptElement.onerror = function() {
+                    console.error('Не удалось загрузить основной скрипт');
+                    const errorMessage = document.getElementById('connection-message');
+                    if (errorMessage) {
+                        errorMessage.textContent = 'Не удалось загрузить необходимые ресурсы';
+                    }
+                    const notification = document.getElementById('connection-notification');
+                    if (notification) {
+                        notification.classList.remove('hidden');
+                    }
+                };
+                document.body.appendChild(scriptElement);
+            }
+        }
+        
+        // Запускаем проверку загрузки Supabase
+        checkSupabaseLoaded();
+    });
+    
+    // Запрет копирования и масштабирования
+    document.addEventListener('keydown', function(e) {
+        // Запрет Ctrl+C, Ctrl+V, Ctrl+A
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'a')) {
+            e.preventDefault();
+        }
+        
+        // Запрет Ctrl+/Cmd+ и Ctrl-/Cmd- (масштабирование)
+        if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=')) {
+            e.preventDefault();
+        }
+    });
+    
+    // Запрет масштабирования жестами на мобильных устройствах
+    document.addEventListener('gesturestart', function(e) {
+        e.preventDefault();
+    });
+    
+    // Запрет масштабирования колесиком мыши при зажатой Ctrl
+    document.addEventListener('wheel', function(e) {
+        if (e.ctrlKey) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    // Дополнительная защита от выделения текста
+    document.addEventListener('selectstart', function(e) {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // Оптимизация для мобильных устройств - предотвращение задержки касания
+    document.addEventListener('touchstart', function() {}, {passive: true});
+    </script>
+</body>
+</html> 
